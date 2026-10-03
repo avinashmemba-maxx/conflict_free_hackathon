@@ -1,0 +1,317 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ConflictFree | CSP Backtracking Engine</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        .table-warning-custom {
+            background-color: #fff3cd !important;
+        }
+    </style>
+</head>
+
+<body class="bg-light">
+    <div class="container mt-4 mb-5">
+        <h2 class="text-center text-primary fw-bold mb-1">ConflictFree Engine</h2>
+        <p class="text-center text-muted mb-4">Backtracking CSP Solver with Predictive Resource Allocation</p>
+
+        <div class="row">
+            <!-- Left Column: Input Form -->
+            <div class="col-md-4">
+                <div class="card shadow-sm mb-3 border-0">
+                    <div class="card-body bg-white rounded">
+                        <h5 class="card-title fw-bold">1. Event Details</h5>
+                        <hr>
+                        <div class="mb-2">
+                            <label class="form-label small fw-bold">Event Name <span
+                                    class="text-success small fw-normal">(Auto-detects requirements)</span></label>
+                            <input type="text" class="form-control form-control-sm border-primary" id="eventName"
+                                placeholder="Try typing 'Dance' or 'Python'">
+                        </div>
+                        <div class="row mb-2">
+                            <div class="col-6">
+                                <label class="form-label small fw-bold">Event Type</label>
+                                <select class="form-select form-select-sm" id="eventType">
+                                    <option value="standard">Standard</option>
+                                    <option value="mega">Mega Event</option>
+                                </select>
+                            </div>
+                            <div class="col-6">
+                                <label class="form-label small fw-bold">Participants</label>
+                                <input type="number" class="form-control form-control-sm" id="participants"
+                                    placeholder="60">
+                            </div>
+                        </div>
+                        <div class="mb-2">
+                            <label class="form-label small fw-bold">Faculty Coordinator</label>
+                            <input type="text" class="form-control form-control-sm" id="coordinator"
+                                placeholder="e.g. Dr. Smith">
+                        </div>
+
+                        <!-- Equipment Checkboxes -->
+                        <div class="mb-2 p-2 bg-light border rounded" id="equipmentBox">
+                            <label class="form-label small fw-bold mb-1">Required Equipment</label><br>
+                            <div class="form-check form-check-inline small">
+                                <input class="form-check-input" type="checkbox" value="Projector" id="eq1">
+                                <label class="form-check-label">Projector</label>
+                            </div>
+                            <div class="form-check form-check-inline small">
+                                <input class="form-check-input" type="checkbox" value="High-Power PA System" id="eq2">
+                                <label class="form-check-label">PA System</label>
+                            </div>
+                            <div class="form-check form-check-inline small">
+                                <input class="form-check-input" type="checkbox" value="Stage Lighting" id="eq3">
+                                <label class="form-check-label">Stage Lighting</label>
+                            </div>
+                        </div>
+
+                        <div class="row mb-3">
+                            <div class="col-6">
+                                <label class="form-label small fw-bold">Date</label>
+                                <input type="date" class="form-control form-control-sm" id="eventDate">
+                            </div>
+                            <div class="col-6">
+                                <label class="form-label small fw-bold">Time Slot</label>
+                                <select class="form-select form-select-sm" id="eventTime">
+                                    <option value="09:30 AM - 11:00 AM">09:30 AM - 11:00 AM</option>
+                                    <option value="11:00 AM - 12:30 PM">11:00 AM - 12:30 PM</option>
+                                    <option value="01:00 PM - 02:30 PM">01:00 PM - 02:30 PM</option>
+                                    <option value="02:30 PM - 04:00 PM">02:30 PM - 04:00 PM</option>
+                                </select>
+                            </div>
+                        </div>
+                        <button class="btn btn-dark w-100 mb-2" onclick="addEvent()">+ Add to Queue</button>
+
+                        <!-- REAL CSV UPLOAD -->
+                        <input type="file" id="csvFileInput" accept=".csv" style="display: none;"
+                            onchange="handleRealCSVUpload(event)">
+                        <button class="btn btn-outline-secondary btn-sm w-100"
+                            onclick="document.getElementById('csvFileInput').click()">📁 Upload Real CSV File</button>
+                    </div>
+                </div>
+
+                <div class="card shadow-sm border-0">
+                    <div class="card-body bg-primary text-white rounded text-center">
+                        <h6 class="fw-bold">2. Run CSP Algorithm</h6>
+                        <p class="small mb-3">MRV Heuristic & Forward Checking Active.</p>
+                        <button class="btn btn-light text-primary w-100 fw-bold" onclick="runScheduler()">Generate
+                            Clash-Free Schedule</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Right Column: Outputs -->
+            <div class="col-md-8">
+                <div class="card shadow-sm mb-3 border-0">
+                    <div class="card-body">
+                        <h6 class="card-title fw-bold text-secondary">Pending Registration Queue</h6>
+                        <ul id="eventQueueList" class="list-group list-group-flush small"
+                            style="max-height: 150px; overflow-y: auto;">
+                            <li class="list-group-item text-muted">No events registered yet.</li>
+                        </ul>
+                    </div>
+                </div>
+
+                <div class="card shadow-sm border-0">
+                    <div class="card-body">
+                        <div class="d-flex justify-content-between align-items-center mb-2">
+                            <h5 class="card-title text-primary fw-bold m-0">Generated Timetable</h5>
+                            <button class="btn btn-sm btn-outline-success" onclick="window.print()">📥 Export to PDF /
+                                .ics</button>
+                        </div>
+                        <div class="table-responsive">
+                            <table class="table align-middle">
+                                <thead class="table-light">
+                                    <tr>
+                                        <th>Event & Faculty</th>
+                                        <th>Date & Time</th>
+                                        <th>Venue Assigned</th>
+                                        <th>System Remarks</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="scheduleTableBody">
+                                    <tr>
+                                        <td colspan="4" class="text-center text-muted small py-4">Awaiting execution...
+                                        </td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let eventQueue = [];
+        document.getElementById('eventDate').valueAsDate = new Date();
+
+        // 🌟 MAGIC PREDICTIVE AI LOGIC 🌟
+        document.getElementById('eventName').addEventListener('input', function () {
+            const name = this.value.toLowerCase();
+
+            document.getElementById('eq1').checked = false;
+            document.getElementById('eq2').checked = false;
+            document.getElementById('eq3').checked = false;
+            document.getElementById('eventType').value = 'standard';
+            document.getElementById('participants').value = '';
+
+            if (name.includes('dance') || name.includes('ramp') || name.includes('cultural')) {
+                document.getElementById('eq2').checked = true; // PA System
+                document.getElementById('eq3').checked = true; // Stage Lighting
+                document.getElementById('eventType').value = 'mega';
+                document.getElementById('participants').value = '300';
+                flashHighlight();
+            } else if (name.includes('sing') || name.includes('music')) {
+                document.getElementById('eq2').checked = true; // PA System
+                document.getElementById('eventType').value = 'mega';
+                document.getElementById('participants').value = '250';
+                flashHighlight();
+            } else if (name.includes('python') || name.includes('workshop') || name.includes('tech') || name.includes('ai')) {
+                document.getElementById('eq1').checked = true; // Projector
+                document.getElementById('eventType').value = 'standard';
+                document.getElementById('participants').value = '60';
+                flashHighlight();
+            }
+        });
+
+        function flashHighlight() {
+            const box = document.getElementById('equipmentBox');
+            box.classList.add('bg-warning');
+            setTimeout(() => box.classList.remove('bg-warning'), 400);
+        }
+
+        function addEvent() {
+            const ev = {
+                name: document.getElementById('eventName').value,
+                participants: document.getElementById('participants').value,
+                coordinator: document.getElementById('coordinator').value || 'Unassigned',
+                date: document.getElementById('eventDate').value,
+                time: document.getElementById('eventTime').value,
+                is_mega: document.getElementById('eventType').value === 'mega',
+                equipment: [
+                    document.getElementById('eq1').checked ? 'Projector' : null,
+                    document.getElementById('eq2').checked ? 'High-Power PA System' : null,
+                    document.getElementById('eq3').checked ? 'Stage Lighting' : null
+                ].filter(Boolean)
+            };
+
+            if (!ev.name || !ev.participants || !ev.date) return alert("Fill Name, Participants, and Date.");
+            eventQueue.push(ev);
+            updateQueueDisplay();
+            document.getElementById('eventName').value = '';
+        }
+
+        // 🌟 REAL FILE UPLOAD & CSV PARSING LOGIC 🌟
+        function handleRealCSVUpload(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+
+            const reader = new FileReader();
+            reader.onload = function (e) {
+                const text = e.target.result;
+                const rows = text.split('\n');
+                let importedCount = 0;
+
+                for (let i = 0; i < rows.length; i++) {
+                    const row = rows[i].trim();
+                    // Skip header or empty rows
+                    if (!row || row.toLowerCase().includes('event name')) continue;
+
+                    const cols = row.split(',');
+                    if (cols.length >= 5) {
+                        const nameRaw = cols[0].trim();
+                        let paxRaw = cols[1].trim();
+                        const coordRaw = cols[2].trim();
+                        const dateRaw = cols[3].trim();
+                        const timeRaw = cols[4].trim();
+
+                        // Run Predictive AI on imported rows
+                        const nameLower = nameRaw.toLowerCase();
+                        let eq = [];
+                        let is_mega = false;
+
+                        if (nameLower.includes('dance') || nameLower.includes('ramp') || nameLower.includes('cultural')) {
+                            eq = ['High-Power PA System', 'Stage Lighting'];
+                            is_mega = true;
+                            if (!paxRaw || paxRaw === '0') paxRaw = '300';
+                        } else if (nameLower.includes('sing') || nameLower.includes('music')) {
+                            eq = ['High-Power PA System'];
+                            is_mega = true;
+                            if (!paxRaw || paxRaw === '0') paxRaw = '250';
+                        } else if (nameLower.includes('python') || nameLower.includes('tech') || nameLower.includes('workshop')) {
+                            eq = ['Projector'];
+                            is_mega = false;
+                        }
+
+                        eventQueue.push({
+                            name: nameRaw,
+                            participants: paxRaw || '60',
+                            coordinator: coordRaw || 'Unassigned',
+                            date: dateRaw,
+                            time: timeRaw,
+                            is_mega: is_mega,
+                            equipment: eq
+                        });
+                        importedCount++;
+                    }
+                }
+                updateQueueDisplay();
+                alert(`Success! Imported ${importedCount} events from your CSV file. Required equipment was automatically detected.`);
+            };
+            reader.readAsText(file);
+            event.target.value = ''; // Reset file input
+        }
+
+        function updateQueueDisplay() {
+            const list = document.getElementById('eventQueueList');
+            list.innerHTML = '';
+            eventQueue.forEach((ev, i) => {
+                const badge = ev.is_mega ? '<span class="badge bg-danger ms-2">Mega</span>' : '';
+                const eqText = ev.equipment.length > 0 ? `[${ev.equipment.join(', ')}]` : '';
+                list.innerHTML += `<li class="list-group-item d-flex justify-content-between align-items-center">
+                    <div><strong>${i + 1}. ${ev.name}</strong> (by ${ev.coordinator}, ${ev.participants} pax) ${badge} <small class="text-info">${eqText}</small></div>
+                    <span class="text-muted small">${ev.date} @ ${ev.time}</span>
+                </li>`;
+            });
+        }
+
+        async function runScheduler() {
+            if (eventQueue.length === 0) return alert("Add at least one event.");
+            const tableBody = document.getElementById('scheduleTableBody');
+            tableBody.innerHTML = '<tr><td colspan="4" class="text-center py-4">Processing MRV Constraints...</td></tr>';
+
+            const response = await fetch('/api/schedule', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ events: eventQueue })
+            });
+
+            const result = await response.json();
+
+            if (result.status === 'success') {
+                tableBody.innerHTML = '';
+                result.schedule.forEach(item => {
+                    const rowClass = item.status === 'Moved' ? 'table-warning-custom' : '';
+                    const statusBadge = item.status === 'Moved' ? `<span class="badge bg-warning text-dark">Modified</span>` : `<span class="badge bg-success">Optimal</span>`;
+
+                    // FIXED: item.name is now used instead of item.event to prevent "undefined"
+                    tableBody.innerHTML += `<tr class="${rowClass}">
+                        <td><div class="fw-bold">${item.name}</div><div class="small text-muted">Coord: ${item.coordinator}</div></td>
+                        <td><div class="small fw-bold">${item.date}</div><div class="small text-muted">${item.time}</div></td>
+                        <td><span class="badge bg-dark">${item.venue}</span></td>
+                        <td class="small">${statusBadge}<br><span class="text-muted" style="font-size: 0.75rem;">${item.message}</span></td>
+                    </tr>`;
+                });
+            } else {
+                tableBody.innerHTML = `<tr><td colspan="4" class="text-danger fw-bold text-center py-4 bg-light border border-danger">⚠️ ${result.message}</td></tr>`;
+            }
+        }
+    </script>
+</body>
+
+</html>
